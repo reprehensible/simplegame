@@ -9,6 +9,8 @@ var board = {
 
 var entities = [];
 
+var paused = true;
+
 var scores = {
   win: 0,
   lose: 0
@@ -55,6 +57,10 @@ var norm = function(v) {
   return n;
 };
 
+var vecScale = function(v, scale) {
+  return [v[0]*scale, v[1]*scale];
+};
+
 var applyVector = function(v, pos) {
   return [pos[0] + v[0], pos[1] + v[1]];
 };
@@ -91,8 +97,8 @@ var validPosition = function(board, entity, pos) {
 /* AI definitions */
 
 var newBulletAi = function(vec) {
-  return function(self, board, entities) {
-    var newpos = applyVector(vec, self.position);
+  return function(self, board, entities, tscale) {
+    var newpos = applyVector(vecScale(vec, tscale), self.position);
     if (validPosition(board, self, newpos)) {
       self.position = newpos;
     }
@@ -108,7 +114,7 @@ var newBulletAi = function(vec) {
 };
 
 var ai = {};
-ai["runningAi"] = function(self, board, entities) {
+ai["runningAi"] = function(self, board, entities, tscale) {
   // initialize
   if (!self.aiData) {
     self.aiData = {
@@ -139,6 +145,7 @@ ai["runningAi"] = function(self, board, entities) {
     if (hypotenuse(playerDistance) < 100) {
       v = reflect(v);
     }
+    v = vecScale(v, tscale);
     var newpos = applyVector(v, self.position);
     var b = box(self, newpos);
     if ((b[0][0] <= 0) || (b[3][0] >= board.x)) {
@@ -181,8 +188,15 @@ var draw = function(entities, board) {
 };
 
 var makeAnimator = function(entities, board) {
+  var lastTs;
   var frame = function(ts) {
+    if (!lastTs) { lastTs = ts; }
+    var delta = ts - lastTs;
+    if (!paused) {
+      loop(board, entities, keystate, delta);
+    }
     draw(entities, board);
+    lastTs = ts;
     window.requestAnimationFrame(frame);
   };
   return frame;
@@ -253,13 +267,15 @@ var inputVelocity = function(keystate) {
 };
 
 // main tick loop
-var loop = function(board, entities, keystate) {
+var loop = function(board, entities, keystate, delta) {
+  var tscale = 16 / delta;
+
   // move
   for (i in entities) {
     var entity = entities[i];
 
     if (entity.player) {
-      var v = inputVelocity(keystate);
+      var v = vecScale(inputVelocity(keystate), tscale);
       var newpos = applyVector(v, entity.position);
       if (validPosition(board, entity, newpos)) {
         entity.position = newpos;
@@ -273,7 +289,7 @@ var loop = function(board, entities, keystate) {
       else {
         f = entity.ai;
       }
-      f.call(ai, entity, board, entities);
+      f.call(ai, entity, board, entities, tscale);
     }
 
   }
@@ -327,19 +343,12 @@ var keystate = {
 board.elementRef = boardElement(board);
 resetGame();
 document.getElementsByTagName("body")[0].appendChild(board.elementRef);
-var animate = makeAnimator(entities, board);
+var animate = makeAnimator(entities, board, keystate);
 animate();
 
 // set up pause/start events
-var interval;
 board.elementRef.onclick = function() {
-  if (interval) {
-    window.clearInterval(interval);
-    interval = null;
-  }
-  else {
-    interval = window.setInterval(loop, 16, board, entities, keystate); // tick
-  }
+  paused = !paused;
 };
 
 // track arrow key state
