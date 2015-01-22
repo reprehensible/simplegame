@@ -9,8 +9,6 @@ var board = {
 
 var entities = [];
 
-var paused = true;
-
 var scores = {
   win: 0,
   lose: 0
@@ -189,17 +187,29 @@ var draw = function(entities, board) {
 
 var makeAnimator = function(entities, board) {
   var lastTs;
+  var paused = true;
   var frame = function(ts) {
+    console.log("frame", ts);
     if (!lastTs) { lastTs = ts; }
     var delta = ts - lastTs;
-    if (!paused) {
-      loop(board, entities, keystate, delta);
-    }
+    loop(board, entities, keystate, delta);
     draw(entities, board);
     lastTs = ts;
-    window.requestAnimationFrame(frame);
+    if (!paused) {
+      window.requestAnimationFrame(frame);
+    }
   };
-  return frame;
+  return function(pause) {
+    if (pause === undefined) { // toggle
+      pause = !paused;
+    }
+    if (paused !== pause) {
+      if (!pause) {
+        window.requestAnimationFrame(frame);
+      }
+      paused = pause;
+    }
+  };
 };
 
 var cssColor = function(rgb) {
@@ -343,12 +353,12 @@ var keystate = {
 board.elementRef = boardElement(board);
 resetGame();
 document.getElementsByTagName("body")[0].appendChild(board.elementRef);
-var animate = makeAnimator(entities, board, keystate);
-animate();
+var animator = makeAnimator(entities, board, keystate);
+animator(false);
 
 // set up pause/start events
 board.elementRef.onclick = function() {
-  paused = !paused;
+  animator();
 };
 
 // track arrow key state
