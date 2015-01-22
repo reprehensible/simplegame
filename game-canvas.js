@@ -180,6 +180,14 @@ var draw = function(entities, board) {
   }
 };
 
+var makeAnimator = function(entities, board) {
+  var frame = function(ts) {
+    draw(entities, board);
+    window.requestAnimationFrame(frame);
+  };
+  return frame;
+};
+
 var cssColor = function(rgb) {
   return "rgb(" + rgb.join(",") + ")";
 };
@@ -268,7 +276,6 @@ var loop = function(board, entities, keystate) {
       f.call(ai, entity, board, entities);
     }
 
-    draw(entities,board);
   }
 
   // collision
@@ -307,7 +314,6 @@ var resetGame = function() {
   for (i in newEntities) {
     entities.push(newEntities[i]);
   }
-  draw(entities, board);
 };
 
 // initialize state
@@ -321,6 +327,8 @@ var keystate = {
 board.elementRef = boardElement(board);
 resetGame();
 document.getElementsByTagName("body")[0].appendChild(board.elementRef);
+var animate = makeAnimator(entities, board);
+animate();
 
 // set up pause/start events
 var interval;
